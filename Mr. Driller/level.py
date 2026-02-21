@@ -1,16 +1,17 @@
 from random import randint
 import block
+import numpy as np
+import torch
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def generateLvl(colors, lines, width, background, pillP=5, PillPL=7, PillMLE=20, SoloP=10, UnbreakableP=5, DelayedP=10):
-    # pillPL : Minimal pill qty / level
-    # pillMLE : Minimal number of lines between pills
     level = []
     LineRemainBeforePill = 0
-    for i in range(lines+5):
+    for i in range(lines + 5):
         line = []
 
-        if i in range(5):   # Override for first 5 lines -> generates empty blocks
+        if i in range(5):   # Prime 5 righe vuote
             for j in range(width):
                 newBlock = block.Classic(j, i, 1, 0)
                 newBlock.changeBG(background)
@@ -20,10 +21,10 @@ def generateLvl(colors, lines, width, background, pillP=5, PillPL=7, PillMLE=20,
             LineRemainBeforePill -= 1
             for j in range(width):
 
-                PillRn = randint(0, 100)
+                PillRn        = randint(0, 100)
                 UnbreakableRn = randint(0, 100)
-                DelayedRn = randint(0, 100)
-                SoloRn = randint(0, 100)
+                DelayedRn     = randint(0, 100)
+                SoloRn        = randint(0, 100)
 
                 if PillRn < pillP and PillPL != 0 and LineRemainBeforePill < 0:
                     PillPL -= 1
@@ -66,20 +67,19 @@ def generateLvl(colors, lines, width, background, pillP=5, PillPL=7, PillMLE=20,
 def resetLevel(level):
     for row in level:
         for cell in row:
-            cell.reset
+            cell.reset()
 
 
 def render(surface, level, currOffset):
+    """
+    FIX: la versione originale chiamava element.display(surface) senza currOffset
+    quando currOffset==0, causando il render a coordinate assolute sbagliate
+    al cambio livello. Ora currOffset viene SEMPRE passato.
+    Si disegnano le 9 righe visibili a partire da currOffset.
+    """
+    start = currOffset
+    end   = min(currOffset + 9, len(level))   # protezione out-of-bounds
 
-    # init
-    if currOffset == 0:
-        for i in range(currOffset, currOffset + 9, 1):
-            for element in level[i]:
-                element.display(surface)
-
-    # scroll up
-    else:
-        if currOffset+9 < len(level):
-            for i in range(currOffset, currOffset+9, 1):
-                for element in level[i]:
-                    element.display(surface, currOffset)
+    for i in range(start, end):
+        for element in level[i]:
+            element.display(surface, currOffset)

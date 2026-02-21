@@ -1,157 +1,135 @@
 import pygame
-from os import path
-#from character import *
+from os import path, makedirs # Aggiunto makedirs
 import level
 
-
+# --- GESTIONE PUNTEGGI ---
 def storeScore(playerScore):
-    # Opens file or creates it
-    if path.isfile(path.join("Assets", "Score", "score.txt")):
-        scoreFile = open(path.join("Assets", "Score", "score.txt"), "r+")
+    # Creiamo la cartella se non esiste, per evitare crash
+    folder_path = path.join("Assets", "Score")
+    if not path.exists(folder_path):
+        makedirs(folder_path)
+
+    file_path = path.join(folder_path, "score.txt")
+
+    # Apre o crea il file
+    if path.isfile(file_path):
+        scoreFile = open(file_path, "r+")
     else:
-        scoreFile = open(path.join("Assets", "Score", "score.txt"), "w+")
+        scoreFile = open(file_path, "w+")
 
-    # Check if file is empty, if so, adds dummy scores
+    # Gestione file vuoto
     scoreFile.seek(0)
-    checkChar = scoreFile.read(1)
-    scoreFile.seek(0)
-
-    if not checkChar:
+    if not scoreFile.read(1):
         for i in range(100, 400, 100):
-            if i != 0:
-                scoreFile.write(str(i) + "\n")
-            else:
-                scoreFile.write(str(1) + "\n")
-        scoreFile.seek(0)
-
-    # Get what is stored inside in an array.
+            scoreFile.write(str(i) + "\n")
+    
+    scoreFile.seek(0)
     lines = scoreFile.readlines()
-    for i in range(len(lines)):
-        lines[i] = lines[i].strip()
+    
+    # Pulizia e conversione
+    scores = []
+    for line in lines:
+        try:
+            scores.append(int(line.strip()))
+        except ValueError:
+            pass
 
-    # Convert array's items to integers, add playerScore and sort the array
-    for i in range(len(lines)):
-        lines[i] = int(lines[i])
+    scores.append(playerScore)
+    scores.sort(reverse=True)
+    
+    # Mantieni solo i top 3
+    scores = scores[:3]
 
-    lines.append(playerScore)
-
-    lines.sort(reverse=True)
-
-    # Convert back to strings, in order to write in the file
-    for i in range(len(lines)):
-        lines[i] = str(lines[i])
-        lines[i] = lines[i].strip()
-
-    # Empties file and writes the array's items
+    # Scrittura
     scoreFile.seek(0)
     scoreFile.truncate()
-    scoreFile.seek(0)
-    for item in lines:
-        scoreFile.write(item + "\n")
+    for s in scores:
+        scoreFile.write(str(s) + "\n")
 
-    # Truncate file down to three lines
-    scoreFile.seek(0)
-    lineOffset = []
-    offset = 0
-    for line in scoreFile:
-        lineOffset.append(offset)
-        offset += len(line)
-
-    scoreFile.seek(lineOffset[3] + 1)
-    scoreFile.truncate()
-
-    # Closes file
     scoreFile.close()
 
 
 def readScore(surface):
-    # Opens file and defines font
-    scoreFile = open(path.join("Assets", "Score", "score.txt"), "r")
-    FontUi = pygame.font.Font("Assets\Misc\police\AOR_Improved.ttf", 48)
+    file_path = path.join("Assets", "Score", "score.txt")
+    
+    # Se il file non esiste ancora, non disegnare nulla o disegna placeholder
+    if not path.exists(file_path):
+        return
 
-    # Get scores from file
-    lines = scoreFile.readlines()
-    lines.sort(reverse=True)
-    if len(lines) >= 3:
-        dispQyt = 3
-    else:
-        dispQyt = len(lines)
-    for i in range(dispQyt):
-        lines[i] = lines[i].strip()
-        ttd = str(i + 1)
-        ttd += " : "
-        ttd += lines[i]
-        ttd.strip()
-        scoreDisp = FontUi.render(ttd, 1, (220, 0, 255))
-        surface.blit(scoreDisp, (i*240+30, 535))
+    try:
+        scoreFile = open(file_path, "r")
+        FontUi = pygame.font.Font("Assets/Misc/police/Act_Of_Rejection.ttf", 48) # Controlla il nome del font!
 
-    # Closes file
-    scoreFile.close()
+        lines = scoreFile.readlines()
+        lines.sort(reverse=True, key=lambda x: int(x.strip()) if x.strip().isdigit() else 0)
+        
+        dispQyt = min(len(lines), 3)
+        
+        for i in range(dispQyt):
+            val = lines[i].strip()
+            ttd = f"{i + 1} : {val}"
+            scoreDisp = FontUi.render(ttd, 1, (220, 0, 255))
+            surface.blit(scoreDisp, (i*240+30, 535))
+
+        scoreFile.close()
+    except Exception as e:
+        print(f"Errore lettura score: {e}")
 
 
+# --- MENU GRAFICO ---
 def mainMenu(surface, optionIM):
+    # Assicurati che i percorsi siano corretti
+    try:
+        bg = pygame.image.load(path.join("Assets", "Menu", "menu.png"))
+        
+        if optionIM == 1:
+            playImg = pygame.image.load(path.join("Assets", "Buttons", "play_s.png"))
+            quitImg = pygame.image.load(path.join("Assets", "Buttons", "quit_u.png"))
+        elif optionIM == 2:
+            playImg = pygame.image.load(path.join("Assets", "Buttons", "play_u.png"))
+            quitImg = pygame.image.load(path.join("Assets", "Buttons", "quit_s.png"))
 
-    bg = pygame.image.load(path.join("Assets", "Menu", "menu.png"))
-
-    if optionIM == 1:
-        playImg = pygame.image.load(path.join("Assets", "Buttons", "play_s.png"))
-        quitImg = pygame.image.load(path.join("Assets", "Buttons", "quit_u.png"))
-    elif optionIM == 2:
-        playImg = pygame.image.load(path.join("Assets", "Buttons", "play_u.png"))
-        quitImg = pygame.image.load(path.join("Assets", "Buttons", "quit_s.png"))
-
-    surface.blit(bg, (0, 0))
-    surface.blit(playImg, (310, 300))
-    surface.blit(quitImg, (310, 400))
-    readScore(surface)
-    pygame.display.update()
+        surface.blit(bg, (0, 0))
+        surface.blit(playImg, (310, 300))
+        surface.blit(quitImg, (310, 400))
+        readScore(surface)
+        pygame.display.update()
+    except FileNotFoundError as e:
+        print(f"Errore caricamento asset menu: {e}")
 
 
-def changeLvl(currentLvl, player):
-    if currentLvl < 10:
+def changeLvl(currentLvl, player, is_ai=False):
+    if currentLvl < 10:   #PRIMA 10
         currentLvl += 1
         player.resetCoord(currentLvl)
-        if currentLvl in [2, 7]:
-            colors = 2
-        else:
-            colors = 4
+        
+        colors = 2 if currentLvl in [2, 7] else 4
+
+        bg_name = f"{currentLvl}" 
 
         if currentLvl > 4:
-            pillP = 2
-            pillPL = 5
-            pillMLE = 40
-            soloP = 10
-            unbreakableP = 10
-            delayedP = 12
-            lvl = level.generateLvl(colors, 155, 7, currentLvl, pillP, pillPL, pillMLE, soloP, unbreakableP, delayedP)
+            lvl = level.generateLvl(colors, 155, 7, bg_name, 5, 7, 20, 10, 10, 12)
         else:
-            lvl = level.generateLvl(colors, 80, 7, currentLvl)
+            lvl = level.generateLvl(colors, 80, 7, bg_name)
+        # -----------------------
 
         for row in lvl:
             for block in row:
                 block.updCoText(lvl)
 
-        won = False
-
-        return lvl, currentLvl, won
+        return lvl, currentLvl, False
 
     else:
-        storeScore(player.scoreAcc())
-        won = True
-        lvl = [[]]
-        return lvl, currentLvl, won
+        # GIOCO FINITO (Livello 10 superato)
+        if not is_ai: 
+            storeScore(player.scoreAcc())
+        
+        game_completed = True
+        return [], currentLvl, game_completed
 
 
 def restart(player):
-    lvl, currentlvl, won = changeLvl(0, player)
+    # Riavvia dal livello 0 -> 1
+    lvl, currentlvl, won = changeLvl(0, player, is_ai=True) # is_ai qui non importa perché lvl < 10
     player.resetScore()
     return lvl, currentlvl, won
-
-
-
-
-
-
-
-
-
